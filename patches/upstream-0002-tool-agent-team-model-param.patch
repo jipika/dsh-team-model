@@ -1,0 +1,52 @@
+--- a/packages/experimental/tool-agent-team/src/index.ts
++++ b/packages/experimental/tool-agent-team/src/index.ts
+@@ -195,22 +195,42 @@
+       name: 'spawn_teammate',
+       description: 'Create one named, durable teammate. Only the Team Lead may call this tool.',
+       parameters: {
+         name: { type: 'string', required: true, description: 'Unique lower-kebab-case teammate name.' },
+         description: { type: 'string', required: true, description: 'Short description of the delegated responsibility.' },
+         prompt: { type: 'string', required: true, description: 'Complete initial task for the teammate.' },
+         context: {
+           type: 'string',
+           enum: ['fresh', 'fork'],
+           description: 'fresh starts without Lead history; fork inherits completed Lead turns. Defaults to fresh.',
+         },
++        model: {
++          type: 'string',
++          description: 'Optional `<provider>/<model>` LLM route for the teammate. Defaults to the Lead route.',
++        },
++        reasoning_effort: {
++          type: 'string',
++          description: 'Optional reasoning effort for the selected route. Requires model.',
++        },
+       },
+       output: jsonOutput(SPAWN_VALUE_SCHEMA),
+       async execute(args, exec) {
+         const agent = callingAgent(exec.agent, 'spawn_teammate')
+         const context = args.context ?? 'fresh'
++        // Split `<provider>/<model>`; provider names and model ids never contain a slash.
++        const separator = typeof args.model === 'string' ? args.model.indexOf('/') : -1
++        const route = args.model === undefined || separator <= 0 || separator === args.model.length - 1
++          ? undefined
++          : { provider: args.model.slice(0, separator).trim(), model: args.model.slice(separator + 1).trim() }
++        if (args.model !== undefined && (route === undefined || route.provider.length === 0 || route.model.length === 0)) {
++          throw new Error(`model must be "<provider>/<model>", got "${args.model}"`)
++        }
++        if (args.reasoning_effort !== undefined && route === undefined) {
++          throw new Error('reasoning_effort requires model (supply provider and model together)')
++        }
+         const result = await ctx.agentTeams.spawnTeammate(agent, {
+           name: args.name,
+           description: args.description,
+           prompt: [{ type: 'text', text: args.prompt }],
+           context,
+           provider: context === 'fork' ? config.forkProvider : config.freshProvider,
++          // Omitted keeps inheritance; specified overrides (needs 0001).
++          ...(route === undefined
++            ? {}
++            : { agentOptions: { provider: route.provider, model: route.model, ...(args.reasoning_effort === undefined ? {} : { reasoningEffort: args.reasoning_effort }) } }),
+           signal: exec.signal,
+         })
+         return { member: modelMember(result.member) }
+       },

@@ -1,0 +1,6 @@
+# Team Model bundle: additive per-teammate model selection.
+# Does NOT touch the official agent-team / tool-agent-team rows, so the live
+# roster, task board and messaging keep working while this bundle is installed.
+- insert:
+    - id: team-model
+      name: '@local/dsh-team-model'

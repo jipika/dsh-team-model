@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Team Model",
+    "description": "让开团时给每个队友单独指定模型：不指定就继承 Lead，指定了才走指定路由。"
+  }
+}

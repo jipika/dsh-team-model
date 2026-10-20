@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Team Model",
+    "description": "Per-teammate model selection for Agent Teams: inherit by default, override when specified."
+  }
+}

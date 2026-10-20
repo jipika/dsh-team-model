@@ -1,0 +1,29 @@
+{
+  "name": "@local/dsh-team-model",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "description": "Per-teammate model selection for Agent Teams: default inherit, specified override.",
+  "exports": {
+    ".": "./index.js",
+    "./package.json": "./package.json",
+    "./locale/*.json": "./locale/*.json"
+  },
+  "files": [
+    "index.js",
+    "lib/*.js",
+    "locale/*.json",
+    "checks/*.mjs",
+    "patches/*.patch",
+    "README.md"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "meta": {
+    "title": "Team Model",
+    "description": "让开团时给每个队友单独指定模型：不指定就继承 Lead，指定了才走指定路由。"
+  }
+}

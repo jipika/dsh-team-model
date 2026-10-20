@@ -1,0 +1,38 @@
+--- a/packages/experimental/agent-team/src/types.ts
++++ b/packages/experimental/agent-team/src/types.ts
+@@ -162,12 +162,15 @@
+   readonly disposalTimeoutMs?: number
+ }
+
+ /** Input for creating one durable teammate. */
++// NOTE: rebase against the installed version before applying; the field is
++// additive and mirrors SubagentStartRequest.agentOptions.
+ export interface SpawnTeammateRequest {
+   readonly name: string
+   readonly description: string
+   readonly prompt: ContentBlock[]
+   readonly context: 'fresh' | 'fork'
+   readonly provider: string
++  // Optional host-Agent provider/model/reasoning-effort override. Omitted
++  // (undefined) keeps the current behavior: the child inherits the Lead route.
++  readonly agentOptions?: AgentOptions
+   readonly signal: AbortSignal
+ }
+
+--- a/packages/experimental/agent-team/src/roster.ts
++++ b/packages/experimental/agent-team/src/roster.ts
+@@ -166,9 +166,11 @@
+       const started = await this.ctx.subagents.startActivation({
+         delivery: 'parent',
+         childId,
+         provider: request.provider,
+         label: description,
+         request: {
+           prompt: request.prompt,
+-          parent: root
++          parent: root,
++          // Forward the per-teammate override; undefined preserves inheritance.
++          ...request.agentOptions === undefined ? {} : { agentOptions: request.agentOptions }
+         },
+         signal,
+       })
