@@ -1,6 +1,6 @@
-# dsh-team-model（v0.2.0）
+# dsh-team-model（v0.3.0）
 
-开团时给每个队友单独指定模型。语义按约定的来：**不指定就继承 Lead，指定了才走指定路由**，绝不静默跑错模型。
+开团时给每个队友单独指定模型。语义按约定的来：**不指定就继承 Lead，指定了才走指定路由**，绝不静默跑错模型。v0.3.0 起支持开团后中途改成员模型（`team_assign_model`）。
 
 ## 现状与边界（先说清楚）
 
@@ -9,14 +9,26 @@
 - **v0.2.0 起不再等上游**：`lib/activation-patch.js` 在宿主里包了一层 `ctx.subagents.startActivation`。roster 是属性查找调用（`this.ctx.subagents.startActivation(...)`），所以实例级包装能接住；包装只对 `spawn` / `fork` 这两个 in-process provider 且 prompt 里带本插件路由标记的调用注入 `agentOptions`，其余调用（原生 spawn、one-shot subagent、out-of-process 后端）原样透传。`manager.ts:390` 的 `resolveChildAgentOptions(parent, request.agentOptions, depth)` 收到即生效。
 - 插件仍保留建队后校验：读 `listMembers` 验有效模型，不一致就**明确报错**（不将错就错）。现在校验会通过；若哪天宿主改了 roster 的调用方式导致包装失效，工具会在建队前报 `patch did not install`，而不是白建一个占位成员。
 
+## v0.3.0：中途改模型（team_assign_model）
+
+GUI 的模型选择器对 addressed subagent 会话是硬编码不可用的（`ui-model-selection` 的 seat 对这类会话 `return null`，宿主 `resolveAgent` 也会拒被 subagent routing 持有的会话），所以中途换模型走 Host 工具：
+
+- `team_assign_model({ target, model?, reasoning_effort? })`（Lead-only）：
+  - **活体成员**：`agent.model.select()` —— 与官方 `session/selectModel` 同一落点。下一轮请求即走新路由，history 头部自动插一条 `[model changed: …]` 通告（core `modelSwitchNotice`）。切换前有 turnBoundary 守卫（轮次进行中拒）+ 同一成员连续切换按 sessionId 串行化。
+  - **inactive 成员**：往其 session log 追加一条 `model/selection` 事件（write 单写者 + seq 连续 + flush，与 dsh-team-member-preset 的持久化通道同款契约）。冷恢复时 `AgentModel.current()` 读投影终值（`pending ?? lastUsed`），压过 descriptor 的 `agentProvider/agentModel`，恢复即走新路由。
+  - **effort 预校验**：`reasoning_effort` 先过 `ctx.llm.resolveCallConfig`（官方 selectModel 同款），adapter 不认的档位在建时就拒，不写脏 log。
+  - 只读模式：省略 `model` → 返回成员当前生效选择 + 状态。
+  - 幂等：目标选择与当前一致时不重复写。
+
 ## 文件
 
-- `index.js`：Host 插件，注册 `spawn_teammate_with_model`（Lead-only，用 `tryMembership` 卡）。
-- `lib/route.js`：纯函数（解析路由、组装 AgentOptions、校验是否兑现），`checks/` 共用同一份。
+- `index.js`：Host 插件，注册 `spawn_teammate_with_model` + `team_assign_model`（均 Lead-only）。
+- `lib/route.js`：纯函数（解析路由、组装 AgentOptions、校验是否兑现、selection 比较/渲染），`checks/` 共用同一份。
 - `lib/activation-patch.js`：包装 `ctx.subagents.startActivation` 的补丁层；路由以 HTML 注释
   `<!--dsh-team-model:route:{...}-->` 写进队友 prompt 第一块，包装层解析后注入 `request.agentOptions`。
   带版本号 + 引用计数 + `ensureActivationPatch`（每次建队前自检重装），用于对抗 HMR 双代竞态。
 - `checks/parse-route-check.mjs`：离线检查，`node checks/parse-route-check.mjs`。
+- `checks/assign-model-check.mjs`：selection 助手离线检查，`node checks/assign-model-check.mjs`。
 - `checks/activation-patch-check.mjs`：补丁层离线检查（marker 往返、引用计数、陈旧代替换、原型回退），
   `node checks/activation-patch-check.mjs`。
 - `patches/upstream-0001-agent-team-agentoptions.patch`：给官方 `agent-team` 加 `agentOptions` 字段并透传到 `startActivation`。

@@ -1,9 +1,9 @@
 {
   "name": "@local/dsh-team-model",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
-  "description": "Per-teammate model selection for Agent Teams: default inherit, specified override.",
+  "description": "Per-teammate model selection for Agent Teams: default inherit, specified override, mid-session reassign.",
   "exports": {
     ".": "./index.js",
     "./package.json": "./package.json",
@@ -24,6 +24,6 @@
   },
   "meta": {
     "title": "Team Model",
-    "description": "让开团时给每个队友单独指定模型：不指定就继承 Lead，指定了才走指定路由。"
+    "description": "让开团时给每个队友单独指定模型：不指定就继承 Lead，指定了才走指定路由；开团后可用 team_assign_model 中途改成员模型。"
   }
 }
